@@ -1,0 +1,65 @@
+{% set zones      = properties["zones"] %}
+{% set num_nodes  = properties["nodes"] %}
+{% set nodes      = range(num_nodes) %}
+{% set name_stub  = properties["name-stub"] %}
+{% set vol_name   = properties["vol-name"] %}
+{% set replicas   = properties["replicas"] %}
+{% set arbiters   = properties["arbiters"] %}
+{% set mnt_pnt    = properties["mount-point"] %}
+{% set num_zones  = zones|length %}
+
+resources:
+{% for n in nodes %}
+  {% set zone = zones[n % num_zones] %}
+- name: {{ name_stub }}{{ n }}-brick
+  type: compute.v1.disk
+  properties:
+    zone: {{ zone }}
+    sizeGb: 200
+    type: zones/{{ zone }}/diskTypes/pd-ssd 
+{% endfor %}
+  
+{% for n in nodes %}
+  {% set zone = zones[n % num_zones] %}
+- name: {{ name_stub }}{{ n }}
+  type: compute.v1.instance
+  properties:
+    zone: {{ zone }} 
+    machineType: https://www.googleapis.com/compute/v1/projects/{{ env["project"] }}/zones/{{ zone }}/machineTypes/{{ properties["type"] }}
+    disks:
+    - deviceName: boot
+      type: PERSISTENT
+      boot: true
+      autoDelete: true
+      initializeParams:
+        diskName: {{ name_stub }}{{ n }}-boot
+        sourceImage: https://www.googleapis.com/compute/v1/projects/{{ properties["image-project"] }}/global/images/{{ properties["image"] }}
+    - deviceName: brick
+      source: $(ref.{{ name_stub }}{{ n }}-brick.selfLink)
+      type: PERSISTENT
+      boot: false
+      autoDelete: false
+    networkInterfaces:
+    - network: https://www.googleapis.com/compute/v1/projects/{{ env["project"] }}/global/networks/default 
+      accessConfigs:
+      - name: External NAT
+        type: ONE_TO_ONE_NAT
+    metadata:
+      items:
+      - key: startup-script
+        value: |
+          #!/bin/bash
+          wget -O - http://download.gluster.org/pub/gluster/glusterfs/LATEST/rsa.pub | apt-key add -
+          apt-get update -y
+          apt-get install glusterfs-server -y
+          echo -e "o\nn\np\n1\n\n\nw" | fdisk /dev/sdb
+          mkfs -t ext4 /dev/sdb1
+          mkdir -p {{ mnt_pnt }} && mount /dev/sdb1 {{ mnt_pnt }} && mkdir -p {{ mnt_pnt }}/brick
+          echo "/dev/sdb1 /export/sdb1 ext4 defaults 0 0"  >> /etc/fstab
+          {% if n is equalto 0 %}
+          sleep 60
+            {% for x in nodes %}gluster peer probe {{ name_stub }}{{ x }}
+            {% endfor %}
+          gluster volume create {{ vol_name }} replica {{ replicas }} {% for x in nodes %}{{ name_stub }}{{ x }}:{{ mnt_pnt }}/brick {% endfor %}
+          gluster volume start {{ vol_name }}{% endif %}
+{% endfor %}
