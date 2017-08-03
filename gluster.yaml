@@ -11,6 +11,7 @@ resources:
     replicas: 3
     arbiters: 1
     vol-name: 'gv0'
+    brick-size: 200
     name-stub: 'gluster-'
     mount-point: '/export/sdb1'
     type: f1-micro

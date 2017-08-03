@@ -18,6 +18,7 @@ limitations under the License.
 {% set nodes      = range(num_nodes) %}
 {% set name_stub  = properties["name-stub"] %}
 {% set vol_name   = properties["vol-name"] %}
+{% set brick_size = properties["brick-size"] %}
 {% set replicas   = properties["replicas"] %}
 {% set arbiters   = properties["arbiters"] %}
 {% set mnt_pnt    = properties["mount-point"] %}
@@ -30,7 +31,7 @@ resources:
   type: compute.v1.disk
   properties:
     zone: {{ zone }}
-    sizeGb: 200
+    sizeGb: {{ brick_size }}
     type: zones/{{ zone }}/diskTypes/pd-ssd 
 {% endfor %}
   
