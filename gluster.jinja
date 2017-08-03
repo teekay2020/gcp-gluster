@@ -1,3 +1,18 @@
+{#
+Copyright 2017 Google Inc. All rights reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+#}
+
 {% set zones      = properties["zones"] %}
 {% set num_nodes  = properties["nodes"] %}
 {% set nodes      = range(num_nodes) %}
@@ -52,12 +67,16 @@ resources:
           wget -O - http://download.gluster.org/pub/gluster/glusterfs/LATEST/rsa.pub | apt-key add -
           apt-get update -y
           apt-get install glusterfs-server -y
-          echo -e "o\nn\np\n1\n\n\nw" | fdisk /dev/sdb
-          mkfs -t ext4 /dev/sdb1
-          mkdir -p {{ mnt_pnt }} && mount /dev/sdb1 {{ mnt_pnt }} && mkdir -p {{ mnt_pnt }}/brick
-          echo "/dev/sdb1 /export/sdb1 ext4 defaults 0 0"  >> /etc/fstab
+
+          echo -e "o\nn\np\n1\n\n\nw" | fdisk /dev/sdb && \
+            mkfs -t ext4 /dev/sdb1 && \
+            mkdir -p {{ mnt_pnt }} && \
+            mount /dev/sdb1 {{ mnt_pnt }} && \
+            mkdir -p {{ mnt_pnt }}/brick && \
+            echo "/dev/sdb1 {{ mnt_pnt }}/brick ext4 defaults 0 0"  >> /etc/fstab
+
           {% if n is equalto 0 %}
-          sleep 60
+          sleep 120
             {% for x in nodes %}gluster peer probe {{ name_stub }}{{ x }}
             {% endfor %}
           gluster volume create {{ vol_name }} replica {{ replicas }} {% for x in nodes %}{{ name_stub }}{{ x }}:{{ mnt_pnt }}/brick {% endfor %}
