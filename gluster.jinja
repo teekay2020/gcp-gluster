@@ -25,10 +25,16 @@ limitations under the License.
 {% set num_zones  = zones|length %}
 
 resources:
-- name: {{ env["deployment"] }}
+- name: {{ env['name'] }}-svc
+  type: iam.v1.serviceAccount
+  properties:
+    accountId: {{ env['name'] }}
+    displayName: serviceAccount-{{ env['name'] }}
+
+- name: {{ env["name"] }}-cfg
   type: runtimeconfig.v1beta1.config
   properties:
-    config: {{ env["deployment"] }}
+    config: {{ env["name"] }}-cfg
     description: "Runtime resources for coordination of GlusterFS cluster creation"
 
 {% for n in nodes %}
@@ -66,6 +72,10 @@ resources:
       accessConfigs:
       - name: External NAT
         type: ONE_TO_ONE_NAT
+    serviceAccounts:
+    - email: $(ref.{{ env['name'] }}.email)
+      scopes:
+      - "https://www.googleapis.com/auth/cloud-platform"
     metadata:
       items:
       - key: startup-script
@@ -75,6 +85,9 @@ resources:
           apt-get update -y
           apt-get install glusterfs-server -y
 
+          gcloud components update -q
+          gcloud components install beta -q
+
           echo -e "o\nn\np\n1\n\n\nw" | fdisk /dev/sdb && \
             mkfs -t ext4 /dev/sdb1 && \
             mkdir -p {{ mnt_pnt }} && \
@@ -83,11 +96,11 @@ resources:
             echo "/dev/sdb1 {{ mnt_pnt }}/brick ext4 defaults 0 0"  >> /etc/fstab
 
             gcloud beta runtime-config configs variables set completed/{{ name_stub }}{{ n }} \
-                   "TRUE" --config-name {{ env["deployment"] }} --is-text
+                   "TRUE" --config-name {{ env["name"] }}-cfg --is-text
 
           {% if n is equalto 0 %}
             gcloud beta runtime-config configs waiters create startup-completed \
-                   --config-name {{ env["deployment"] }} \
+                   --config-name {{ env["name"] }}-cfg \
                    --success-cardinality-path completed \
                    --success-cardinality-number {{ num_nodes }} --timeout 600
 
