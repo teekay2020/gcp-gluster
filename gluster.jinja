@@ -25,6 +25,12 @@ limitations under the License.
 {% set num_zones  = zones|length %}
 
 resources:
+- name: {{ env["deployment"] }}
+  type: runtimeconfig.v1beta1.config
+  properties:
+    config: {{ env["deployment"] }}
+    description: "Runtime resources for coordination of GlusterFS cluster creation"
+
 {% for n in nodes %}
   {% set zone = zones[n % num_zones] %}
 - name: {{ name_stub }}{{ n }}-brick
@@ -76,8 +82,15 @@ resources:
             mkdir -p {{ mnt_pnt }}/brick && \
             echo "/dev/sdb1 {{ mnt_pnt }}/brick ext4 defaults 0 0"  >> /etc/fstab
 
+            gcloud beta runtime-config configs variables set completed/{{ name_stub }}{{ n }} \
+                   "TRUE" --config-name {{ env["deployment"] }} --is-text
+
           {% if n is equalto 0 %}
-          sleep 120
+            gcloud beta runtime-config configs waiters create startup-completed \
+                   --config-name {{ env["deployment"] }} \
+                   --success-cardinality-path completed \
+                   --success-cardinality-number {{ num_nodes }} --timeout 600
+
             {% for x in nodes %}gluster peer probe {{ name_stub }}{{ x }}
             {% endfor %}
           gluster volume create {{ vol_name }} replica {{ replicas }} {% for x in nodes %}{{ name_stub }}{{ x }}:{{ mnt_pnt }}/brick {% endfor %}
