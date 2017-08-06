@@ -28,7 +28,7 @@ resources:
 - name: {{ env['name'] }}-svc
   type: iam.v1.serviceAccount
   properties:
-    accountId: {{ env['name'] }}
+    accountId: {{ env['name'] }}-svc
     displayName: serviceAccount-{{ env['name'] }}
 
 - name: {{ env["name"] }}-cfg
@@ -36,6 +36,12 @@ resources:
   properties:
     config: {{ env["name"] }}-cfg
     description: "Runtime resources for coordination of GlusterFS cluster creation"
+  accessControl:
+    gcpIamPolicy:
+      bindings:
+      - role: roles/deploymentmanager.editor
+        members:
+        - "serviceAccount: {{ env['name'] }}-svc@{{ env['project'] }}.iam.gserviceaccount.com"
 
 {% for n in nodes %}
   {% set zone = zones[n % num_zones] %}
@@ -73,9 +79,9 @@ resources:
       - name: External NAT
         type: ONE_TO_ONE_NAT
     serviceAccounts:
-    - email: $(ref.{{ env['name'] }}.email)
+    - email: $(ref.{{ env['name'] }}-svc.email)
       scopes:
-      - "https://www.googleapis.com/auth/cloud-platform"
+      - "https://www.googleapis.com/auth/cloudruntimeconfig"
     metadata:
       items:
       - key: startup-script
