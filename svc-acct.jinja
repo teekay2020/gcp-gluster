@@ -1,0 +1,17 @@
+- name: {{ env['name'] }}-svc
+  type: iam.v1.serviceAccount
+  properties:
+    accountId: {{ env['name'] }}-svc
+    displayName: serviceAccount-{{ env['name'] }}
+
+- name: {{ env["name"] }}-cfg
+  type: runtimeconfig.v1beta1.config
+  properties:
+    config: {{ env["name"] }}-cfg
+    description: "Runtime resources for coordination of GlusterFS cluster creation"
+  accessControl:
+    gcpIamPolicy:
+      bindings:
+      - role: roles/deploymentmanager.editor
+        members:
+        - "serviceAccount: {{ env['name'] }}-svc@{{ env['project'] }}.iam.gserviceaccount.com"
