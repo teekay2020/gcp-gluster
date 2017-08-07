@@ -61,9 +61,6 @@ resources:
             mkdir -p /export/sdb1/brick && \
             echo "/dev/sdb1 /export/sdb1/brick ext4 defaults 0 0"  >> /etc/fstab
 
-          # Ugly hack! Sleep for 2 mins to allow remote peers to complete configuration
-          # sleep 120
-
           # Establish connectivity with remote Gluster peers
           gluster peer probe gluster-1
           gluster peer probe gluster-2

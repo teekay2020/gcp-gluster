@@ -13,28 +13,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 #}
 
-{% set zones      = properties["zones"] %}
-{% set num_nodes  = properties["nodes"] %}
-{% set nodes      = range(num_nodes) %}
-{% set name_stub  = properties["name-stub"] %}
-{% set vol_name   = properties["vol-name"] %}
-{% set brick_size = properties["brick-size"] %}
-{% set replicas   = properties["replicas"] %}
-{% set arbiters   = properties["arbiters"] %}
-{% set mnt_pnt    = properties["mount-point"] %}
-{% set num_zones  = zones|length %}
+{% set zones         = properties["zones"] %}
+{% set num_nodes     = properties["nodes"] %}
+{% set nodes         = range(num_nodes) %}
+{% set name_stub     = properties["name-stub"] %}
+{% set vol_name      = properties["vol-name"] %}
+{% set brick_size    = properties["brick-size"] %}
+{% set replicas      = properties["replicas"] %}
+{% set arbiters      = properties["arbiters"] %}
+{% set mnt_pnt       = properties["mount-point"] %}
+{% set num_zones     = zones|length %}
+{% set startup_cfg   = env["deployment"] + "-startup-config" %}
+{% set vol_waiter    = env["deployment"] + "-vol-waiter" %}
+{% set brick_waiter  = env["deployment"] + "-brick-waiter" %}
 
 resources:
-- name: {{ env['name'] }}-svc
-  type: iam.v1.serviceAccount
-  properties:
-    accountId: {{ env['name'] }}-svc
-    displayName: serviceAccount-{{ env['name'] }}
-
-- name: {{ env["name"] }}-cfg
+- name: {{ startup_cfg }}
   type: runtimeconfig.v1beta1.config
   properties:
-    config: {{ env["name"] }}-cfg
+    config: {{ startup_cfg }} 
     description: "Runtime resources for coordination of GlusterFS cluster creation"
   accessControl:
     gcpIamPolicy:
@@ -42,6 +39,24 @@ resources:
       - role: roles/deploymentmanager.editor
         members:
         - "serviceAccount: {{ env['name'] }}-svc@{{ env['project'] }}.iam.gserviceaccount.com"
+
+- name: {{ vol_waiter }}
+  type: runtimeconfig.v1beta1.waiter
+  metadata:
+    dependsOn:
+    - {{ name_stub }}0
+  properties:
+    parent: $(ref.{{ startup_cfg }}.name)
+    waiter: {{ vol_waiter }}
+    timeout: 300s
+    success:
+      cardinality:
+        path: /success
+        number: 1
+    failure:
+      cardinality:
+        path: /failure
+        number: 1
 
 {% for n in nodes %}
   {% set zone = zones[n % num_zones] %}
@@ -79,9 +94,9 @@ resources:
       - name: External NAT
         type: ONE_TO_ONE_NAT
     serviceAccounts:
-    - email: $(ref.{{ env['name'] }}-svc.email)
+    - email: gluster-demo@djrut-sandbox.iam.gserviceaccount.com 
       scopes:
-      - "https://www.googleapis.com/auth/cloudruntimeconfig"
+        - "https://www.googleapis.com/auth/cloudruntimeconfig"
     metadata:
       items:
       - key: startup-script
@@ -91,27 +106,43 @@ resources:
           apt-get update -y
           apt-get install glusterfs-server -y
 
-          gcloud components update -q
-          gcloud components install beta -q
-
           echo -e "o\nn\np\n1\n\n\nw" | fdisk /dev/sdb && \
-            mkfs -t ext4 /dev/sdb1 && \
-            mkdir -p {{ mnt_pnt }} && \
-            mount /dev/sdb1 {{ mnt_pnt }} && \
-            mkdir -p {{ mnt_pnt }}/brick && \
-            echo "/dev/sdb1 {{ mnt_pnt }}/brick ext4 defaults 0 0"  >> /etc/fstab
+          mkfs -t ext4 /dev/sdb1 && \
+          mkdir -p {{ mnt_pnt }} && \
+          mount /dev/sdb1 {{ mnt_pnt }} && \
+          mkdir -p {{ mnt_pnt }}/brick && \
+          echo "/dev/sdb1 {{ mnt_pnt }}/brick ext4 defaults 0 0"  >> /etc/fstab
 
-            gcloud beta runtime-config configs variables set completed/{{ name_stub }}{{ n }} \
-                   "TRUE" --config-name {{ env["name"] }}-cfg --is-text
+          gcloud beta runtime-config configs variables set completed/{{ name_stub }}{{ n }} \
+                 "TRUE" --config-name {{ startup_cfg }} --is-text
 
           {% if n is equalto 0 %}
-            gcloud beta runtime-config configs waiters create startup-completed \
-                   --config-name {{ env["name"] }}-cfg \
+          gcloud beta runtime-config configs waiters create {{ brick_waiter }} \
+                   --config-name {{ startup_cfg }} \
                    --success-cardinality-path completed \
                    --success-cardinality-number {{ num_nodes }} --timeout 600
 
-            {% for x in nodes %}gluster peer probe {{ name_stub }}{{ x }}
-            {% endfor %}
-          gluster volume create {{ vol_name }} replica {{ replicas }} {% for x in nodes %}{{ name_stub }}{{ x }}:{{ mnt_pnt }}/brick {% endfor %}
-          gluster volume start {{ vol_name }}{% endif %}
+          if [ $? -ne 0 ]; then
+           echo "ERROR! One or more bricks failed to configure properly or waiter timed out. Aborting deployment..."
+           gcloud beta runtime-config configs variables set failure/{{ name_stub }}{{ n }} \
+                  "TRUE" --config-name {{ startup_cfg }} --is-text && \
+           exit 1
+          fi
+
+          {% for x in nodes %}gluster peer probe {{ name_stub }}{{ x }}
+          {% endfor %}
+
+          gluster volume create {{ vol_name }} replica {{ replicas }} {% for x in nodes %}{{ name_stub }}{{ x }}:{{ mnt_pnt }}/brick {% endfor %} && \
+          gluster volume start {{ vol_name }}
+
+          if [ $? -ne 0 ]; then
+            echo "Creation of Gluster volume {{ vol_name }} failed. Aborting deployment..."
+            gcloud beta runtime-config configs variables set failure/{{ name_stub }}{{ n }} \
+                   "TRUE" --config-name {{ startup_cfg }} --is-text && \
+            exit 1
+          fi
+
+          gcloud beta runtime-config configs variables set success/{{ name_stub }}{{ n }} \
+                 "TRUE" --config-name {{ startup_cfg }} --is-text
+          {% endif %} 
 {% endfor %}
