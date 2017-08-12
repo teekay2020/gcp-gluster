@@ -1,19 +1,19 @@
 imports:
-- path: gluster.jinja
+  - path: gluster.jinja
 
 resources:
-- name: gluster-demo
-  type: gluster.jinja
-  properties:
-    region: us-central1
-    zones: ['us-central1-b', 'us-central1-c', 'us-central1-f']
-    image-project: debian-cloud 
-    image: debian-9-stretch-v20170717
-    type: f1-micro
-    nodes: 3
-    name-stub: 'gluster-'
-    replicas: 3
-    arbiters: 1
-    vol-name: 'gv0'
-    brick-size: 512
-    mount-point: '/export/sdb1'
+  - name: gluster-demo
+    type: gluster.jinja
+    properties:
+      region: us-central1
+      zones: ['us-central1-b', 'us-central1-c', 'us-central1-f']
+      image-project: debian-cloud
+      image: debian-9-stretch-v20170717
+      type: f1-micro
+      nodes: 3
+      name-stub: 'gluster-'
+      replicas: 3
+      arbiters: 1
+      vol-name: 'gv0'
+      brick-size: 512
+      mount-point: '/export/sdb1'
