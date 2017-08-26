@@ -38,7 +38,7 @@ resources:
   type: runtimeconfig.v1beta1.waiter
   metadata:
     dependsOn:
-    - {{ name_stub }}0
+      - {{ name_stub }}-0
   properties:
     parent: $(ref.{{ startup_cfg }}.name)
     waiter: {{ vol_waiter }}
@@ -54,7 +54,7 @@ resources:
 
 {% for n in nodes %}
   {% set zone = zones[n % num_zones] %}
-- name: {{ name_stub }}{{ n }}-brick
+- name: {{ name_stub }}-{{ n }}-brick
   type: compute.v1.disk
   properties:
     zone: {{ zone }}
@@ -64,7 +64,7 @@ resources:
   
 {% for n in nodes %}
   {% set zone = zones[n % num_zones] %}
-- name: {{ name_stub }}{{ n }}
+- name: {{ name_stub }}-{{ n }}
   type: compute.v1.instance
   properties:
     zone: {{ zone }} 
@@ -75,10 +75,10 @@ resources:
       boot: true
       autoDelete: true
       initializeParams:
-        diskName: {{ name_stub }}{{ n }}-boot
+        diskName: {{ name_stub }}-{{ n }}-boot
         sourceImage: https://www.googleapis.com/compute/v1/projects/{{ properties["image-project"] }}/global/images/{{ properties["image"] }}
     - deviceName: brick
-      source: $(ref.{{ name_stub }}{{ n }}-brick.selfLink)
+      source: $(ref.{{ name_stub }}-{{ n }}-brick.selfLink)
       type: PERSISTENT
       boot: false
       autoDelete: false
@@ -107,7 +107,7 @@ resources:
           mkdir -p {{ mnt_pnt }}/brick && \
           echo "/dev/sdb1 {{ mnt_pnt }}/brick ext4 defaults 0 0"  >> /etc/fstab
 
-          gcloud beta runtime-config configs variables set completed/{{ name_stub }}{{ n }} \
+          gcloud beta runtime-config configs variables set completed/{{ name_stub }}-{{ n }} \
                  "TRUE" --config-name {{ startup_cfg }} --is-text
 
           {% if n is equalto 0 %}
@@ -118,25 +118,25 @@ resources:
 
           if [ $? -ne 0 ]; then
            echo "ERROR! One or more bricks failed to configure properly or waiter timed out. Aborting deployment..."
-           gcloud beta runtime-config configs variables set failure/{{ name_stub }}{{ n }} \
+           gcloud beta runtime-config configs variables set failure/{{ name_stub }}-{{ n }} \
                   "TRUE" --config-name {{ startup_cfg }} --is-text && \
            exit 1
           fi
 
-          {% for x in nodes %}gluster peer probe {{ name_stub }}{{ x }}
+          {% for x in nodes %}gluster peer probe {{ name_stub }}-{{ x }}
           {% endfor %}
 
-          gluster volume create {{ vol_name }} replica {{ replicas }} {% for x in nodes %}{{ name_stub }}{{ x }}:{{ mnt_pnt }}/brick {% endfor %} && \
+          gluster volume create {{ vol_name }} replica {{ replicas }} {% for x in nodes %}{{ name_stub }}-{{ x }}:{{ mnt_pnt }}/brick {% endfor %} && \
           gluster volume start {{ vol_name }}
 
           if [ $? -ne 0 ]; then
             echo "Creation of Gluster volume {{ vol_name }} failed. Aborting deployment..."
-            gcloud beta runtime-config configs variables set failure/{{ name_stub }}{{ n }} \
+            gcloud beta runtime-config configs variables set failure/{{ name_stub }}-{{ n }} \
                    "TRUE" --config-name {{ startup_cfg }} --is-text && \
             exit 1
           fi
 
-          gcloud beta runtime-config configs variables set success/{{ name_stub }}{{ n }} \
+          gcloud beta runtime-config configs variables set success/{{ name_stub }}-{{ n }} \
                  "TRUE" --config-name {{ startup_cfg }} --is-text
           {% endif %} 
 {% endfor %}

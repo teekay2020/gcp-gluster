@@ -1,26 +1,26 @@
 resources:
-- name: gluster-0-brick
+- name: gluster-naive-0-brick
   type: compute.v1.disk
   properties:
     zone: us-central1-b 
     sizeGb: 200
     type: zones/us-central1-b/diskTypes/pd-ssd 
 
-- name: gluster-1-brick
+- name: gluster-naive-1-brick
   type: compute.v1.disk
   properties:
     zone: us-central1-c 
     sizeGb: 200
     type: zones/us-central1-c/diskTypes/pd-ssd 
 
-- name: gluster-2-brick
+- name: gluster-naive-2-brick
   type: compute.v1.disk
   properties:
     zone: us-central1-f 
     sizeGb: 200
     type: zones/us-central1-f/diskTypes/pd-ssd 
 
-- name: gluster-0 
+- name: gluster-naive-0 
   type: compute.v1.instance
   properties:
     zone: us-central1-b 
@@ -31,10 +31,10 @@ resources:
       boot: true
       autoDelete: true
       initializeParams:
-        diskName: gluster-0-boot
+        diskName: gluster-naive-0-boot
         sourceImage: https://www.googleapis.com/compute/v1/projects/debian-cloud/global/images/debian-8-jessie-v20160606
     - deviceName: brick
-      source: $(ref.gluster-0-brick.selfLink)
+      source: $(ref.gluster-naive-0-brick.selfLink)
       type: PERSISTENT
       boot: false
       autoDelete: false
@@ -62,14 +62,14 @@ resources:
             echo "/dev/sdb1 /export/sdb1/brick ext4 defaults 0 0"  >> /etc/fstab
 
           # Establish connectivity with remote Gluster peers
-          gluster peer probe gluster-1
-          gluster peer probe gluster-2
+          gluster peer probe gluster-naive-1
+          gluster peer probe gluster-naive-2
 
           # Create gluster volume
-          gluster volume create gv0 replica 3 gluster-0:/export/sdb1/brick gluster-1:/export/sdb1/brick gluster-2:/export/sdb1/brick
+          gluster volume create gv0 replica 3 gluster-naive-0:/export/sdb1/brick gluster-naive-1:/export/sdb1/brick gluster-naive-2:/export/sdb1/brick
           gluster volume start gv0 
  
-- name: gluster-1
+- name: gluster-naive-1
   type: compute.v1.instance
   properties:
     zone: us-central1-c 
@@ -80,10 +80,10 @@ resources:
       boot: true
       autoDelete: true
       initializeParams:
-        diskName: gluster-1-boot
+        diskName: gluster-naive-1-boot
         sourceImage: https://www.googleapis.com/compute/v1/projects/debian-cloud/global/images/debian-8-jessie-v20160606
     - deviceName: brick
-      source: $(ref.gluster-1-brick.selfLink)
+      source: $(ref.gluster-naive-1-brick.selfLink)
       type: PERSISTENT
       boot: false
       autoDelete: false
@@ -110,7 +110,7 @@ resources:
             mkdir -p /export/sdb1/brick && \
             echo "/dev/sdb1 /export/sdb1/brick ext4 defaults 0 0"  >> /etc/fstab
 
-- name: gluster-2
+- name: gluster-naive-2
   type: compute.v1.instance
   properties:
     zone: us-central1-f 
@@ -121,10 +121,10 @@ resources:
       boot: true
       autoDelete: true
       initializeParams:
-        diskName: gluster-2-boot
+        diskName: gluster-naive-2-boot
         sourceImage: https://www.googleapis.com/compute/v1/projects/debian-cloud/global/images/debian-8-jessie-v20160606
     - deviceName: brick
-      source: $(ref.gluster-2-brick.selfLink)
+      source: $(ref.gluster-naive-2-brick.selfLink)
       type: PERSISTENT
       boot: false
       autoDelete: false

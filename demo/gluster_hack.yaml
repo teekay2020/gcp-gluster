@@ -2,7 +2,7 @@ imports:
 - path: gluster_hack.jinja
 
 resources:
-- name: gluster-demo
+- name: gluster-hack
   type: gluster_hack.jinja
   properties:
     region: us-central1
@@ -11,7 +11,7 @@ resources:
     image: debian-8-jessie-v20160606
     type: f1-micro
     nodes: 3
-    name-stub: 'gluster-'
+    name-stub: 'gluster-hack'
     replicas: 3
     arbiters: 1
     vol-name: 'gv0'

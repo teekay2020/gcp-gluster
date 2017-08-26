@@ -27,7 +27,7 @@ limitations under the License.
 resources:
 {% for n in nodes %}
   {% set zone = zones[n % num_zones] %}
-- name: {{ name_stub }}{{ n }}-brick
+- name: {{ name_stub }}-{{ n }}-brick
   type: compute.v1.disk
   properties:
     zone: {{ zone }}
@@ -37,7 +37,7 @@ resources:
   
 {% for n in nodes %}
   {% set zone = zones[n % num_zones] %}
-- name: {{ name_stub }}{{ n }}
+- name: {{ name_stub }}-{{ n }}
   type: compute.v1.instance
   properties:
     zone: {{ zone }} 
@@ -48,10 +48,10 @@ resources:
       boot: true
       autoDelete: true
       initializeParams:
-        diskName: {{ name_stub }}{{ n }}-boot
+        diskName: {{ name_stub }}-{{ n }}-boot
         sourceImage: https://www.googleapis.com/compute/v1/projects/{{ properties["image-project"] }}/global/images/{{ properties["image"] }}
     - deviceName: brick
-      source: $(ref.{{ name_stub }}{{ n }}-brick.selfLink)
+      source: $(ref.{{ name_stub }}-{{ n }}-brick.selfLink)
       type: PERSISTENT
       boot: false
       autoDelete: false
@@ -78,8 +78,8 @@ resources:
 
           {% if n is equalto 0 %}
           sleep 120
-            {% for x in nodes %}gluster peer probe {{ name_stub }}{{ x }}
+          {% for x in nodes %}gluster peer probe {{ name_stub }}-{{ x }}
             {% endfor %}
-          gluster volume create {{ vol_name }} replica {{ replicas }} {% for x in nodes %}{{ name_stub }}{{ x }}:{{ mnt_pnt }}/brick {% endfor %}
+            gluster volume create {{ vol_name }} replica {{ replicas }} {% for x in nodes %}{{ name_stub }}-{{ x }}:{{ mnt_pnt }}/brick {% endfor %}
           gluster volume start {{ vol_name }}{% endif %}
 {% endfor %}
