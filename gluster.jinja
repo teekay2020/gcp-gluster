@@ -24,7 +24,7 @@
 {%- set num_zones     = zones|length %}
 {%- set startup_cfg   = env["deployment"] + "-startup-config" %}
 {%- set vol_waiter    = env["deployment"] + "-vol-waiter" %}
-{% set brick_waiter  = env["deployment"] + "-brick-waiter" %}
+{%- set brick_waiter  = env["deployment"] + "-brick-waiter" %}
 
 # yamllint disable rule:line-length
 resources:
@@ -96,16 +96,16 @@ resources:
           - key: startup-script
             value: |
               #!/bin/bash
-              wget -O - http://download.gluster.org/pub/gluster/glusterfs/LATEST/rsa.pub | apt-key add -
-              apt-get update -y
-              apt-get install glusterfs-server -y
+              wget -O - http://download.gluster.org/pub/gluster/glusterfs/LATEST/rsa.pub | apt-key add - && \
+                  apt-get update -y && \
+                  apt-get install glusterfs-server -y || exit 1
 
               echo -e "o\nn\np\n1\n\n\nw" | fdisk /dev/sdb && \
-              mkfs -t ext4 /dev/sdb1 && \
-              mkdir -p {{ mnt_pnt }} && \
-              mount /dev/sdb1 {{ mnt_pnt }} && \
-              mkdir -p {{ mnt_pnt }}/brick && \
-              echo "/dev/sdb1 {{ mnt_pnt }}/brick ext4 defaults 0 0"  >> /etc/fstab
+                  mkfs -t ext4 /dev/sdb1 && \
+                  mkdir -p {{ mnt_pnt }} && \
+                  mount /dev/sdb1 {{ mnt_pnt }} && \
+                  mkdir -p {{ mnt_pnt }}/brick && \
+                  echo "/dev/sdb1 {{ mnt_pnt }}/brick ext4 defaults 0 0"  >> /etc/fstab
 
               gcloud beta runtime-config configs variables set completed/{{ name_stub }}-{{ n }} \
                      "TRUE" --config-name {{ startup_cfg }} --is-text
@@ -135,6 +135,9 @@ resources:
                        "TRUE" --config-name {{ startup_cfg }} --is-text && \
                 exit 1
               fi
+
+              echo 'Removing metadata key startup-script to prevent script re-running on subsequent boots...'
+              gcloud compute instances remove-metadata {{ name_stub }}-{{ n }} --zone={{ zone }} --keys=startup-script || exit 1
 
               gcloud beta runtime-config configs variables set success/{{ name_stub }}-{{ n }} \
                      "TRUE" --config-name {{ startup_cfg }} --is-text
