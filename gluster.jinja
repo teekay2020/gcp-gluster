@@ -28,11 +28,23 @@
 
 # yamllint disable rule:line-length
 resources:
+  - name: {{ env['deployment'] }}-svc
+    type: iam.v1.serviceAccount
+    properties:
+      accountId: {{ env['deployment'] }}
+      displayName: serviceAccount-{{ env['deployment'] }}
+
   - name: {{ startup_cfg }}
     type: runtimeconfig.v1beta1.config
     properties:
       config: {{ startup_cfg }}
       description: "Runtime resources for coordination of GlusterFS cluster creation"
+    accessControl:
+      gcpIamPolicy:
+        bindings:
+          - role: roles/runtimeconfig.admin
+            members:
+              - "serviceAccount: {{ env['deployment'] }}@{{ env['project'] }}.iam.gserviceaccount.com"
 
   - name: {{ vol_waiter }}
     type: runtimeconfig.v1beta1.waiter
@@ -88,15 +100,15 @@ resources:
             - name: External NAT
               type: ONE_TO_ONE_NAT
       serviceAccounts:
-        - email: gluster-demo@djrut-sandbox.iam.gserviceaccount.com
+        - email: {{ env["deployment"] }}@{{ env["project"] }}.iam.gserviceaccount.com
           scopes:
-            - "https://www.googleapis.com/auth/cloudruntimeconfig"
+            - "https://www.googleapis.com/auth/cloud-platform"
       metadata:
         items:
           - key: startup-script
             value: |
               #!/bin/bash
-              wget -O - http://download.gluster.org/pub/gluster/glusterfs/LATEST/rsa.pub | apt-key add - && \
+              wget -O - https://download.gluster.org/pub/gluster/glusterfs/4.0/rsa.pub | apt-key add - && \
                   apt-get update -y && \
                   apt-get install glusterfs-server -y || exit 1
 
@@ -120,7 +132,7 @@ resources:
                echo "ERROR! One or more bricks failed to configure properly or waiter timed out. Aborting deployment..."
                gcloud beta runtime-config configs variables set failure/{{ name_stub }}-{{ n }} \
                       "TRUE" --config-name {{ startup_cfg }} --is-text && \
-               exit 1
+               exit 2
               fi
 
               {% for x in nodes %}gluster peer probe {{ name_stub }}-{{ x }}
