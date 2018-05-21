@@ -80,10 +80,10 @@ resources:
 {%- for n in nodes %}
   {%- set zone = zones[n % num_zones] %}
   - name: {{ name_stub }}-{{ n }}
-    type: compute.v1.instance
+    type: compute.alpha.instance
     properties:
       zone: {{ zone }}
-      machineType: https://www.googleapis.com/compute/v1/projects/{{ env["project"] }}/zones/{{ zone }}/machineTypes/{{ properties["type"] }}
+      machineType: https://www.googleapis.com/compute/alpha/projects/{{ env["project"] }}/zones/{{ zone }}/machineTypes/{{ properties["type"] }}
       disks:
         - deviceName: boot
           type: PERSISTENT
@@ -91,14 +91,14 @@ resources:
           autoDelete: true
           initializeParams:
             diskName: {{ name_stub }}-{{ n }}-boot
-            sourceImage: https://www.googleapis.com/compute/v1/projects/{{ properties["image-project"] }}/global/images/{{ properties["image"] }}
+            sourceImage: https://www.googleapis.com/compute/alpha/projects/{{ properties["image-project"] }}/global/images/{{ properties["image"] }}
         - deviceName: brick
           source: $(ref.{{ name_stub }}-{{ n }}-brick.selfLink)
           type: PERSISTENT
           boot: false
           autoDelete: false
       networkInterfaces:
-        - network: https://www.googleapis.com/compute/v1/projects/{{ env["project"] }}/global/networks/default
+        - network: https://www.googleapis.com/compute/alpha/projects/{{ env["project"] }}/global/networks/default
           accessConfigs:
             - name: External NAT
               type: ONE_TO_ONE_NAT
@@ -106,6 +106,12 @@ resources:
         - email: {{ env["deployment"] }}@{{ env["project"] }}.iam.gserviceaccount.com
           scopes:
             - "https://www.googleapis.com/auth/cloud-platform"
+      accessControl:
+        gcpIamPolicy:
+          bindings:
+            - role: roles/compute.admin
+          members:
+            - "serviceAccount:{{ env['deployment'] }}@{{ env['project'] }}.iam.gserviceaccount.com"
       metadata:
         items:
           - key: startup-script
@@ -152,7 +158,14 @@ resources:
               fi
 
               echo 'Removing metadata key startup-script to prevent script re-running on subsequent boots...'
-              gcloud compute instances remove-metadata {{ name_stub }}-{{ n }} --zone={{ zone }} --keys=startup-script || exit 1
+              gcloud compute instances remove-metadata {{ name_stub }}-{{ n }} --zone={{ zone }} --keys=startup-script
+
+              if [ $? -ne 0 ]; then
+                echo "Metadata removal failed. Aborting deployment..."
+                gcloud beta runtime-config configs variables set deployment-failure/{{ name_stub }}-{{ n }} \
+                       "TRUE" --config-name {{ startup_cfg }} --is-text && \
+                exit 1
+              fi
 
               gcloud beta runtime-config configs variables set deployment-success/{{ name_stub }}-{{ n }} \
                      "TRUE" --config-name {{ startup_cfg }} --is-text
