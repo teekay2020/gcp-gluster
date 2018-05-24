@@ -22,51 +22,9 @@
 {%- set arbiters      = properties["arbiters"] %}
 {%- set mnt_pnt       = properties["mount-point"] %}
 {%- set num_zones     = zones|length %}
-{%- set startup_cfg   = env["deployment"] + "-startup-config" %}
-{%- set vol_waiter    = env["deployment"] + "-vol-waiter" %}
-{%- set brick_waiter  = env["deployment"] + "-brick-waiter" %}
 
 # yamllint disable rule:line-length
 resources:
-  - name: {{ env['deployment'] }}-svc
-    type: iam.v1.serviceAccount
-    properties:
-      accountId: {{ env['deployment'] }}
-      displayName: serviceAccount-{{ env['deployment'] }}
-
-  - name: {{ startup_cfg }}
-    type: runtimeconfig.v1beta1.config
-    properties:
-      config: {{ startup_cfg }}
-      description: "Runtime resources for coordination of GlusterFS cluster creation"
-    accessControl:
-      gcpIamPolicy:
-        bindings:
-          - role: roles/runtimeconfig.admin
-            members:
-              - "serviceAccount:{{ env['deployment'] }}@{{ env['project'] }}.iam.gserviceaccount.com"
-    metadata:
-      dependsOn:
-        - {{ env['deployment'] }}-svc 
-
-  - name: {{ vol_waiter }}
-    type: runtimeconfig.v1beta1.waiter
-    metadata:
-      dependsOn:
-        - {{ name_stub }}-0
-    properties:
-      parent: $(ref.{{ startup_cfg }}.name)
-      waiter: {{ vol_waiter }}
-      timeout: 300s
-      success:
-        cardinality:
-          path: /deployment-success
-          number: 1
-      failure:
-        cardinality:
-          path: /deployment-failure
-          number: 1
-
 {%- for n in nodes %}
   {%- set zone = zones[n % num_zones] %}
   - name: {{ name_stub }}-{{ n }}-brick
@@ -80,10 +38,10 @@ resources:
 {%- for n in nodes %}
   {%- set zone = zones[n % num_zones] %}
   - name: {{ name_stub }}-{{ n }}
-    type: compute.alpha.instance
+    type: compute.v1.instance
     properties:
       zone: {{ zone }}
-      machineType: https://www.googleapis.com/compute/alpha/projects/{{ env["project"] }}/zones/{{ zone }}/machineTypes/{{ properties["type"] }}
+      machineType: https://www.googleapis.com/compute/v1/projects/{{ env["project"] }}/zones/{{ zone }}/machineTypes/{{ properties["type"] }}
       disks:
         - deviceName: boot
           type: PERSISTENT
@@ -91,14 +49,14 @@ resources:
           autoDelete: true
           initializeParams:
             diskName: {{ name_stub }}-{{ n }}-boot
-            sourceImage: https://www.googleapis.com/compute/alpha/projects/{{ properties["image-project"] }}/global/images/{{ properties["image"] }}
+            sourceImage: https://www.googleapis.com/compute/v1/projects/{{ properties["image-project"] }}/global/images/{{ properties["image"] }}
         - deviceName: brick
           source: $(ref.{{ name_stub }}-{{ n }}-brick.selfLink)
           type: PERSISTENT
           boot: false
           autoDelete: false
       networkInterfaces:
-        - network: https://www.googleapis.com/compute/alpha/projects/{{ env["project"] }}/global/networks/default
+        - network: https://www.googleapis.com/compute/v1/projects/{{ env["project"] }}/global/networks/default
           accessConfigs:
             - name: External NAT
               type: ONE_TO_ONE_NAT
@@ -106,12 +64,6 @@ resources:
         - email: {{ env["deployment"] }}@{{ env["project"] }}.iam.gserviceaccount.com
           scopes:
             - "https://www.googleapis.com/auth/cloud-platform"
-      accessControl:
-        gcpIamPolicy:
-          bindings:
-            - role: roles/compute.admin
-          members:
-            - "serviceAccount:{{ env['deployment'] }}@{{ env['project'] }}.iam.gserviceaccount.com"
       metadata:
         items:
           - key: startup-script
@@ -128,46 +80,10 @@ resources:
                   mkdir -p {{ mnt_pnt }}/brick && \
                   echo "/dev/sdb1 {{ mnt_pnt }}/brick ext4 defaults 0 0"  >> /etc/fstab
 
-              gcloud beta runtime-config configs variables set brick-completed/{{ name_stub }}-{{ n }} \
-                     "TRUE" --config-name {{ startup_cfg }} --is-text
-
               {%- if n is equalto 0 %}
-              gcloud beta runtime-config configs waiters create {{ brick_waiter }} \
-                       --config-name {{ startup_cfg }} \
-                       --success-cardinality-path brick-completed \
-                       --success-cardinality-number {{ num_nodes }} --timeout 600
-
-              if [ $? -ne 0 ]; then
-               echo "ERROR! One or more bricks failed to configure properly or waiter timed out. Aborting deployment..."
-               gcloud beta runtime-config configs variables set deployment-failure/{{ name_stub }}-{{ n }} \
-                      "TRUE" --config-name {{ startup_cfg }} --is-text && \
-               exit 2
-              fi
-
-              {% for x in nodes %}gluster peer probe {{ name_stub }}-{{ x }}
-              {% endfor %}
-
+              {%- for x in nodes %}gluster peer probe {{ name_stub }}-{{ x }}
+              {%- endfor %}
               gluster volume create {{ vol_name }} replica {{ replicas }} {% for x in nodes %}{{ name_stub }}-{{ x }}:{{ mnt_pnt }}/brick {% endfor %} && \
               gluster volume start {{ vol_name }}
-
-              if [ $? -ne 0 ]; then
-                echo "Creation of Gluster volume {{ vol_name }} failed. Aborting deployment..."
-                gcloud beta runtime-config configs variables set deployment-failure/{{ name_stub }}-{{ n }} \
-                       "TRUE" --config-name {{ startup_cfg }} --is-text && \
-                exit 1
-              fi
-
-              echo 'Removing metadata key startup-script to prevent script re-running on subsequent boots...'
-              gcloud compute instances remove-metadata {{ name_stub }}-{{ n }} --zone={{ zone }} --keys=startup-script
-
-              if [ $? -ne 0 ]; then
-                echo "Metadata removal failed. Aborting deployment..."
-                gcloud beta runtime-config configs variables set deployment-failure/{{ name_stub }}-{{ n }} \
-                       "TRUE" --config-name {{ startup_cfg }} --is-text && \
-                exit 1
-              fi
-
-              gcloud beta runtime-config configs variables set deployment-success/{{ name_stub }}-{{ n }} \
-                     "TRUE" --config-name {{ startup_cfg }} --is-text
               {%- endif %}
   {%- endfor %}
