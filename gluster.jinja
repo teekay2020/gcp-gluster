@@ -28,12 +28,6 @@
 
 # yamllint disable rule:line-length
 resources:
-  - name: {{ env['deployment'] }}-svc
-    type: iam.v1.serviceAccount
-    properties:
-      accountId: {{ env['deployment'] }}
-      displayName: serviceAccount-{{ env['deployment'] }}
-
   - name: {{ startup_cfg }}
     type: runtimeconfig.v1beta1.config
     properties:
@@ -45,9 +39,6 @@ resources:
           - role: roles/runtimeconfig.admin
             members:
               - "serviceAccount:{{ env['deployment'] }}@{{ env['project'] }}.iam.gserviceaccount.com"
-    metadata:
-      dependsOn:
-        - {{ env['deployment'] }}-svc 
 
   - name: {{ vol_waiter }}
     type: runtimeconfig.v1beta1.waiter
@@ -80,10 +71,10 @@ resources:
 {%- for n in nodes %}
   {%- set zone = zones[n % num_zones] %}
   - name: {{ name_stub }}-{{ n }}
-    type: compute.alpha.instance
+    type: compute.v1.instance
     properties:
       zone: {{ zone }}
-      machineType: https://www.googleapis.com/compute/alpha/projects/{{ env["project"] }}/zones/{{ zone }}/machineTypes/{{ properties["type"] }}
+      machineType: https://www.googleapis.com/compute/v1/projects/{{ env["project"] }}/zones/{{ zone }}/machineTypes/{{ properties["type"] }}
       disks:
         - deviceName: boot
           type: PERSISTENT
@@ -91,14 +82,14 @@ resources:
           autoDelete: true
           initializeParams:
             diskName: {{ name_stub }}-{{ n }}-boot
-            sourceImage: https://www.googleapis.com/compute/alpha/projects/{{ properties["image-project"] }}/global/images/{{ properties["image"] }}
+            sourceImage: https://www.googleapis.com/compute/v1/projects/{{ properties["image-project"] }}/global/images/{{ properties["image"] }}
         - deviceName: brick
           source: $(ref.{{ name_stub }}-{{ n }}-brick.selfLink)
           type: PERSISTENT
           boot: false
           autoDelete: false
       networkInterfaces:
-        - network: https://www.googleapis.com/compute/alpha/projects/{{ env["project"] }}/global/networks/default
+        - network: https://www.googleapis.com/compute/v1/projects/{{ env["project"] }}/global/networks/default
           accessConfigs:
             - name: External NAT
               type: ONE_TO_ONE_NAT
@@ -106,12 +97,6 @@ resources:
         - email: {{ env["deployment"] }}@{{ env["project"] }}.iam.gserviceaccount.com
           scopes:
             - "https://www.googleapis.com/auth/cloud-platform"
-      accessControl:
-        gcpIamPolicy:
-          bindings:
-            - role: roles/compute.admin
-          members:
-            - "serviceAccount:{{ env['deployment'] }}@{{ env['project'] }}.iam.gserviceaccount.com"
       metadata:
         items:
           - key: startup-script
