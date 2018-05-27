@@ -83,7 +83,7 @@ resources:
               echo 'Removing metadata key startup-script to prevent script re-running on subsequent boots...'
               gcloud compute instances remove-metadata {{ name_stub }}-{{ n }} --zone={{ zone }} --keys=startup-script
 
-              {%- if n is equalto 0 %}
+              {% if n is equalto 0 %}
               {%- for x in nodes %}gluster peer probe {{ name_stub }}-{{ x }}
               {%- endfor %}
               gluster volume create {{ vol_name }} replica {{ replicas }} {% for x in nodes %}{{ name_stub }}-{{ x }}:{{ mnt_pnt }}/brick {% endfor %} && \
