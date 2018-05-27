@@ -1,0 +1,13 @@
+---
+name: gluster-dash
+
+root: ~/projects/demos/gcp-gluster
+
+windows:
+  - dashboard:
+      layout: main-vertical
+      panes:
+        - gcloud compute instances tail-serial-port-output <%= @settings["deployment"] %>-0 --zone=us-central1-b
+        - watch -t -n1 gcloud deployment-manager resources list --deployment=<%= @settings["deployment"] %>
+        - watch -t -n1 gcloud beta runtime-config configs variables list --config-name=<%= @settings["deployment"] %>-startup-config
+        - watch -t -n1 gcloud beta runtime-config configs waiters list --config-name=<%= @settings["deployment"] %>-startup-config
