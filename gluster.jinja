@@ -105,10 +105,20 @@ resources:
                   mkdir -p {{ mnt_pnt }} && \
                   mount /dev/sdb1 {{ mnt_pnt }} && \
                   mkdir -p {{ mnt_pnt }}/brick && \
-                  echo "/dev/sdb1 {{ mnt_pnt }}/brick ext4 defaults 0 0"  >> /etc/fstab
+                  echo "/dev/sdb1 {{ mnt_pnt }}/brick ext4 defaults 0 0"  >> /etc/fstab || exit 1
 
               gcloud beta runtime-config configs variables set brick-completed/{{ name_stub }}-{{ n }} \
-                     "TRUE" --config-name {{ startup_cfg }} --is-text
+                     "TRUE" --config-name {{ startup_cfg }} --is-text || exit 1
+
+              echo 'Removing metadata key startup-script to prevent script re-running on subsequent boots...'
+              gcloud compute instances remove-metadata {{ name_stub }}-{{ n }} --zone={{ zone }} --keys=startup-script
+
+              if [ $? -ne 0 ]; then
+                echo "Metadata removal failed. Aborting deployment..."
+                gcloud beta runtime-config configs variables set deployment-failure/{{ name_stub }}-{{ n }} \
+                       "TRUE" --config-name {{ startup_cfg }} --is-text && \
+                exit 1
+              fi
 
               {%- if n is equalto 0 %}
               gcloud beta runtime-config configs waiters create {{ brick_waiter }} \
@@ -120,7 +130,7 @@ resources:
                echo "ERROR! One or more bricks failed to configure properly or waiter timed out. Aborting deployment..."
                gcloud beta runtime-config configs variables set deployment-failure/{{ name_stub }}-{{ n }} \
                       "TRUE" --config-name {{ startup_cfg }} --is-text && \
-               exit 2
+               exit 1
               fi
 
               {% for x in nodes %}gluster peer probe {{ name_stub }}-{{ x }}
@@ -131,16 +141,6 @@ resources:
 
               if [ $? -ne 0 ]; then
                 echo "Creation of Gluster volume {{ vol_name }} failed. Aborting deployment..."
-                gcloud beta runtime-config configs variables set deployment-failure/{{ name_stub }}-{{ n }} \
-                       "TRUE" --config-name {{ startup_cfg }} --is-text && \
-                exit 1
-              fi
-
-              echo 'Removing metadata key startup-script to prevent script re-running on subsequent boots...'
-              gcloud compute instances remove-metadata {{ name_stub }}-{{ n }} --zone={{ zone }} --keys=startup-script
-
-              if [ $? -ne 0 ]; then
-                echo "Metadata removal failed. Aborting deployment..."
                 gcloud beta runtime-config configs variables set deployment-failure/{{ name_stub }}-{{ n }} \
                        "TRUE" --config-name {{ startup_cfg }} --is-text && \
                 exit 1
