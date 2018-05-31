@@ -15,7 +15,7 @@
 {%- set zones         = properties["zones"] %}
 {%- set num_nodes     = properties["nodes"] %}
 {%- set nodes         = range(num_nodes) %}
-{%- set name_stub     = properties["name-stub"] %}
+{%- set name_stub     = env["deployment"] %}
 {%- set vol_name      = properties["vol-name"] %}
 {%- set brick_size    = properties["brick-size"] %}
 {%- set replicas      = properties["replicas"] %}
@@ -78,9 +78,9 @@ resources:
                   mkdir -p {{ mnt_pnt }} && \
                   mount /dev/sdb1 {{ mnt_pnt }} && \
                   mkdir -p {{ mnt_pnt }}/brick && \
-                  echo "/dev/sdb1 {{ mnt_pnt }}/brick ext4 defaults 0 0"  >> /etc/fstab
+                  echo "/dev/sdb1 {{ mnt_pnt }}/brick ext4 defaults 0 0"  >> /etc/fstab || exit 1
 
-              echo 'Removing metadata key startup-script to prevent script re-running on subsequent boots...'
+              echo "Removing metadata key startup-script to prevent script re-running on subsequent boots..."
               gcloud compute instances remove-metadata {{ name_stub }}-{{ n }} --zone={{ zone }} --keys=startup-script
 
               {% if n is equalto 0 %}

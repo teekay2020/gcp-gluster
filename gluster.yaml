@@ -12,7 +12,6 @@ resources:
       image: debian-9-stretch-v20180510
       type: f1-micro
       nodes: 3
-      name-stub: 'gluster-demo'
       replicas: 3
       arbiters: 1
       vol-name: 'gv0'
