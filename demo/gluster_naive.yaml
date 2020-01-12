@@ -3,21 +3,21 @@ resources:
   type: compute.v1.disk
   properties:
     zone: europe-west2-a 
-    sizeGb: 150
+    sizeGb: 100
     type: zones/europe-west2-a/diskTypes/pd-ssd 
 
 - name: gluster-naive-1-brick
   type: compute.v1.disk
   properties:
     zone: europe-west2-b 
-    sizeGb: 150
+    sizeGb: 100
     type: zones/europe-west2-b/diskTypes/pd-ssd
 
 - name: gluster-naive-2-brick
   type: compute.v1.disk
   properties:
     zone: europe-west2-c 
-    sizeGb: 150
+    sizeGb: 100
     type: zones/europe-west2-c/diskTypes/pd-ssd
 
 - name: gluster-naive-0 

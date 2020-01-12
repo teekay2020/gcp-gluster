@@ -11,10 +11,10 @@ resources:
       image-project: debian-cloud
       image: debian-9-stretch-v20180510
       type: f1-micro
-      nodes: 3
+      nodes: 1
       name-stub: 'gluster-demo'
-      replicas: 3
+      replicas: 1
       arbiters: 1
       vol-name: 'gv0'
-      brick-size: 150
+      brick-size: 200
       mount-point: '/export/sdb1'
