@@ -2,29 +2,29 @@ resources:
 - name: gluster-naive-0-brick
   type: compute.v1.disk
   properties:
-    zone: us-central1-b 
-    sizeGb: 200
-    type: zones/us-central1-b/diskTypes/pd-ssd 
+    zone: europe-west2-a 
+    sizeGb: 150
+    type: zones/europe-west2-a/diskTypes/pd-ssd 
 
 - name: gluster-naive-1-brick
   type: compute.v1.disk
   properties:
-    zone: us-central1-c 
-    sizeGb: 200
-    type: zones/us-central1-c/diskTypes/pd-ssd 
+    zone: europe-west2-b 
+    sizeGb: 150
+    type: zones/europe-west2-b/diskTypes/pd-ssd
 
 - name: gluster-naive-2-brick
   type: compute.v1.disk
   properties:
-    zone: us-central1-f 
-    sizeGb: 200
-    type: zones/us-central1-f/diskTypes/pd-ssd 
+    zone: europe-west2-c 
+    sizeGb: 150
+    type: zones/europe-west2-c/diskTypes/pd-ssd
 
 - name: gluster-naive-0 
   type: compute.v1.instance
   properties:
-    zone: us-central1-b 
-    machineType: https://www.googleapis.com/compute/v1/projects/djrut-sandbox/zones/us-central1-b/machineTypes/f1-micro
+    zone: europe-west2-a 
+    machineType: https://www.googleapis.com/compute/v1/projects/djrut-sandbox/zones/europe-west2-a/machineTypes/f1-micro
     disks:
     - deviceName: boot
       type: PERSISTENT
@@ -72,8 +72,8 @@ resources:
 - name: gluster-naive-1
   type: compute.v1.instance
   properties:
-    zone: us-central1-c 
-    machineType: https://www.googleapis.com/compute/v1/projects/djrut-sandbox/zones/us-central1-c/machineTypes/f1-micro
+    zone: europe-west2-b 
+    machineType: https://www.googleapis.com/compute/v1/projects/djrut-sandbox/zones/europe-west2-b/machineTypes/f1-micro
     disks:
     - deviceName: boot
       type: PERSISTENT
@@ -113,8 +113,8 @@ resources:
 - name: gluster-naive-2
   type: compute.v1.instance
   properties:
-    zone: us-central1-f 
-    machineType: https://www.googleapis.com/compute/v1/projects/djrut-sandbox/zones/us-central1-f/machineTypes/f1-micro
+    zone: europe-west2-c 
+    machineType: https://www.googleapis.com/compute/v1/projects/djrut-sandbox/zones/europe-west2-c/machineTypes/f1-micro
     disks:
     - deviceName: boot
       type: PERSISTENT

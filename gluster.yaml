@@ -6,8 +6,8 @@ resources:
   - name: gluster-demo
     type: gluster.jinja
     properties:
-      region: us-central1
-      zones: ['us-central1-b', 'us-central1-c', 'us-central1-f']
+      region: europe-west2
+      zones: ['europe-west2-a', 'europe-west2-b', 'europe-west2-c']
       image-project: debian-cloud
       image: debian-9-stretch-v20180510
       type: f1-micro
@@ -16,5 +16,5 @@ resources:
       replicas: 3
       arbiters: 1
       vol-name: 'gv0'
-      brick-size: 512
+      brick-size: 150
       mount-point: '/export/sdb1'
